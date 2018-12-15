@@ -110,9 +110,17 @@ foo <- function(data, x = c(1, 2, 3), nom = NA, method = c("hellwig", "mss"))
     tib <- tib[, -dim(tib)[2]]
     tib <- rbind(tib, data2[dim(data2)[1], ])
     
-    
-    
-    return(tib)
+    tib2 <- cbind(data, "Si" = si)
+    nazwy <- rownames(data)
+    tib2 <- as_tibble(tib2)
+    tib2$nazwy2 <- nazwy
+    tib2 <- tib2 %>%
+      arrange(desc(si))
+    tib2 <- as.data.frame(tib2)
+    rownames(tib2) <- tib2$nazwy2
+    tib2 <- tib2[, -dim(tib2)[2]]
+    #tib2 <- rbind(tib2, data2[dim(data2)[1], ])
+    return(list("st" = tib, "normal" = tib2))
   }
   
   if(method == "mss")
@@ -161,8 +169,76 @@ foo <- function(data, x = c(1, 2, 3), nom = NA, method = c("hellwig", "mss"))
     rownames(tib) <- tib$nazwy2
     tib <- tib[, -dim(tib)[2]]
     
+    tib2 <- cbind(data, "wsk" = s_sums_st)
+    nazwy <- rownames(data)
+    tib2 <- as_tibble(tib2)
+    tib2$nazwy2 <- nazwy
+    tib2 <- tib2 %>%
+      arrange(desc(wsk))
+    tib2 <- as.data.frame(tib2)
+    rownames(tib2) <- tib2$nazwy2
+    tib2 <- tib2[, -dim(tib2)[2]]
     
-    return(tib)
+    
+    return(list("st" = tib, "normal" = tib2))
+  }
+  
+  if(method == "msr")
+  {
+    #standaryzacja
+    data_st <- scale(data)
+    data_st <- as.data.frame(data_st)
+    #zamiana na stymulanty
+    for (a in 1:l)
+    {
+      if(x[a] == 2)
+      {
+        data[, a] <- -data[, a]
+      }
+      if(x[a] == 3)
+      {
+        data[, a] <- n2s(data[, a], nom[1])
+        nom <- nom[-1]
+      }
+    }
+    
+    
+    
+    tap <- sapply(1:l, function(x)
+    {
+      rank(data_st[, x], ties.method = "average")
+    })
+    
+    colnames(tap) <- paste0("rank_", colnames(data_st))
+    data_st <- cbind(data_st, tap)
+    
+    r_means <- sapply(1:r, function(x){
+      mean(tap[x, ])
+    })
+    
+    data_st <- cbind(data_st, "r_means" = r_means)
+    
+    nazwy <- rownames(data)
+    tib <- as_tibble(data_st)
+    tib$nazwy2 <- nazwy
+    tib <- tib %>%
+      arrange(desc(r_means))
+    tib <- as.data.frame(tib)
+    rownames(tib) <- tib$nazwy2
+    tib <- tib[, -dim(tib)[2]]
+    
+    tib2 <- cbind(data, "r_means" = r_means)
+    nazwy <- rownames(data)
+    tib2 <- as_tibble(tib2)
+    tib2$nazwy2 <- nazwy
+    tib2 <- tib2 %>%
+      arrange(desc(r_means))
+    tib2 <- as.data.frame(tib2)
+    rownames(tib2) <- tib2$nazwy2
+    tib2 <- tib2[, -dim(tib2)[2]]
+    
+    
+    return(list("st" = tib, "normal" = tib2))
   }
     
 
