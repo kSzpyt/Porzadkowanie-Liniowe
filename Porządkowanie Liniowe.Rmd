@@ -10,13 +10,16 @@ output:
     #theme: united
   
 --- 
-```{r}
+#pakiety
+```{r message=FALSE, warning=FALSE}
 library(kableExtra)
 library(readxl)
+library(TSdist)
+library(dplyr)
 ```
 
 #Wprowadzenie  
-Projekt będzie miał za zadanie pokazanie trzech metod porządkowania liniowego, kolejno metodą **hellwiga**, **metody standaryzowanych sum** oraz **metodą sumy rang**. W tym celu stworzona została funkcja porządkująca wzzystkimi wymienionymi powyżej metodami. Przedstawiona dokładniej zostanie później
+Projekt będzie miał za zadanie pokazanie trzech metod porządkowania liniowego, kolejno metodą **hellwiga**, **metody standaryzowanych sum** oraz **metodą sumy rang**. W tym celu stworzona została funkcja porządkująca wzzystkimi wymienionymi powyżej metodami. Przedstawiona dokładniej zostanie później. Dane używane w kodzie nazywać się będą **phones**.
 
 #Przedstawienie danych  
 Dane, na których opierał się będzie projekt to smartphone'y z wybranymi kilkoma parametrami. Pochodzą one z serwisu [Benchmark](http://www.benchmark.pl/ranking/smartfony).
@@ -50,7 +53,7 @@ wz <- function(x)
 }
 
 ```
-##Wartości odstające  
+##Wartości odstające oraz współczynnik zmienności  
 W celu wychwycenia wartości odstających wykorzystana zostanie reguła trzech sigm- na zestandaryzowanych danych sprawdzamy czy są wartości większe (bezwzględnie) od 3
 ```{r}
 phones_st <- as.data.frame(scale(phones))
@@ -69,20 +72,23 @@ for (x in 4:7) {
 }
 wspz <- as.data.frame(apply(phones, 2, wz))
 colnames(wspz) <- "wsp_zmiennosci"
-wspz%>%
+wspz %>%
   kable() %>%
   kable_styling(bootstrap_options = c("striped", "hover", "bordered"))
 ```
 Przyglądając się boxplotom można zauważyć nienaturalnie niską wartość taktowania procesora
 
-
+```{r}
+phones[which(phones$CPU < 1800), ] %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"))
+```
+Samsung Galaxy Note 8 nie może mieć tak słabego procesora, jest na to za dobrym telefonem. Uznany więc będzie za błąd oraz usunięty z listy obserwacji. Dosyć niewygodnie wygląda również 40mpx w tylnim apracie. Subiektywnie obserwacja ta również zostaje usunięta.
 ```{r}
 phones <- phones[-which(phones$CPU < 1800), ]
 phones <- phones[-which(phones$`Aparat tył` >= 40), ]
-# phones <- phones[-which(phones$cena >= 4000), ]
-# phones <- phones[-which(phones$`Aparat przód` >= 12), ]
 ```
-
+Ponownie wyświetlone zostaną boxploty oraz współczynniki zmienności 
 ```{r echo=FALSE, fig.align='center'}
 par(mfrow = c(1, 3))
 for (x in 1:3) {
@@ -93,12 +99,337 @@ par(mfrow = c(1, 4))
 for (x in 4:7) {
   boxplot(phones[, x], main = colnames(phones)[x])
 }
-apply(phones, 2, wz)
+wspz <- as.data.frame(apply(phones, 2, wz))
+colnames(wspz) <- "wsp_zmiennosci"
+wspz %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"))
 ```
+Patrząc na współczynnii zmienności wartość dal zmiennej **CPU** jest minimalnie poniżej poziomu 0.1, ale pomimo tego w dalszym ciągu będzie brana pod uwagę w obliczeniach w dalszych częściach badania. 
+
+##Typ zmiennych  
+
+ * **cena**- destymualnta, im niższa cena tym lepiej
+ * **waga**- destymualnta, im niższa waga tym lepiej
+ * **Bateria - internet**- stymulanta, im dłuższy czas pracy tym lepiej
+ * **CPU**- stymulanta, im wyższe taktowanie procesora tym lepiej
+ * **Aparat tył**- stymulanta, im więcej mpx tym lepiej tym lepiej
+ * **Aparat przód**- stymulanta, im więcej mpx tym lepiej tym lepiej
+ * **Przekątna**- tutaj można by polemizować czy ilość cali jest stymulantą czy nominantą; w dzisiejszych czasach dąży się zwiększania rozmiarów telefonów, jednakże musi to być w granicach wugody i użyteczności. Dlatego zmienna zostanie zaliczona jako **nominanta** o wartości nominalnej **6 cali**
+
+#Opis funkcji porządkowania liniowego  
+
+Tak jak było wpomniane wcześniej, funkcja ta porządkuje liniowo w jeden z trzech sposobów. **Metoda hellwiga** jest metodą wzorcową. W funkcji do ustalenia odległości od wzorca użyta została odległość euklidesowa. **Metoda standaryzowanych sum** w tym wypadku polega na uśrednieniu wartości zestandaryzowanych zmiennych dla każdej obserwacji, oraz kolejne zestandaryzowanie wynikowych średnich wartośći. **Metoda sumy rang** polega najpierw na porangowaniu zmiennych, a następnie dodaniu do siebie tychże rang dla każdej zmiennej. Na koniec każdej metody całą tabela jest sortowana względem odpowiedniego współczynnika.
+  
+Funkcja jako argumenty przyjmuje kolejno: 
+
+ * **data**- ramka danych ze zmiennymi typu *numeric*
+ * **x**   - wektor liczb (najlepiej factor) mówiący o typie kolejnych zmiennych: 1 dla stymulanty, 2 dla destymulnty, 3 dla nominanty
+ * **nom** - jeżeli wśród zmiennych występuje nominanta należy przyporządkować jej wartość do argumentu **nom**. Argument ten musi mieć taką samą długość, ile występuje nominant. Jeżeli użytkownik nie poda nic to jako nominanty użyte zostaną mediany.
+ * **method**- zmienna typu *character*, przyjmuje wartości **hellwig**, **mss** (standaryzowane sumy) abo **msr**(sumy rang) 
+
+Funckja posiada kilka wyjątków, aby powstrzymać niepoprawne jej użycie. Do poprawnego jej działania niezbędne są pakiety **dplyr** oraz **TSdist**.
+
+##Kod
+Kod funkcji można zobaczyć w pliku RMD lub na moim [GitHubie](https://github.com/kSzpyt/Porzadkowanie-Liniowe/blob/master/pl_foo.R)
+```{r include=FALSE}
+foo <- function(data, x = c(1, 2, 3), nom = NA, method = c("hellwig", "mss", "msr"))
+{
+  if(!is.data.frame(data))
+  {
+    stop("dane musza byc w postaci data.frame")
+  }
+  if(dim(data)[2] != length(x))
+  {
+    stop("niezgodla dlugosc x, powinna miec tyle samo wartosci co ilosc zmienych")
+  }
+  #wyjątek gdy ilosć wartosci nominant jest rózna od nimonant
+  if(!is.na(nom) & length(which(x == 3)) != length(nom))
+  {
+    stop("niezgodna ilosc nominant")
+  }
+  #wyjątek czy użytkownik nie podał "czwartego" typu zmiennej
+  for(a in x)
+  {
+    if(!is.element(a, 1:3))
+    {
+      stop("podaj odpowiedni typ zmiennej: 1- stymualna, 2- destymulanta, 3- nominanta")
+    }
+  }
+
+  #zamiana nominanty na stymulante
+  n2s <- function(v, nom2)
+  {
+    aaa <- v
+    l <- length(aaa)
+    v2 <- NULL
+    for (x in 1:l) {
+      v2[x] <- (-abs(aaa[x] - nom2))
+    }
+    return(v2)
+  }
+  
+  #jeżeli użytkownik nie poda wartości nominanty brana pod uwagę będzie mediana
+  if(is.na(nom))
+  {
+    warning("jako wartość nominalna zostanie użyta mediana")
+    ind <- which(x == 3)
+    nom <- sapply(ind, function(x){
+      median(data[, x])
+    })
+  }
+  
+  #wymiary
+  l <- dim(data)[2]#collumns
+  r <- dim(data)[1]#rows
+  data_n <- data
+
+
+  if(method == "hellwig")
+  {
+    #standaryzacja
+    data_st <- scale(data)
+    data_st <- as.data.frame(data_st)
+    patt <- NA
+    #wyznaczenie wzorca
+    for (a in 1:length(x)) 
+    {
+      if(x[a] == 1)
+      {
+        patt[a] <- max(data_st[, a])
+      }
+      if(x[a] == 2)
+      {
+        patt[a] <- min(data_st[, a])
+      }
+      if(x[a] == 3)
+      {
+        
+        m <- mean(data[, a])
+        s <- sd(data[, a])
+        patt[a] <- (nom[1] - m) / s
+        nom <- nom[-1]
+      }
+    }
+    data2 <- data_st
+    data2 <- rbind(data2, "pattern" = patt)
+    
+    #odległosci euklidesowe
+    ed <- sapply(1:r, function(x)
+    {
+      EuclideanDistance(as.numeric(data2[x,]), as.numeric(data2[r+1, ]))
+    })
+    
+    data2 <- cbind(data2, "ed" = c(ed, NA))
+    d0 <- mean(ed) + 2*sd(ed)
+    si <- sapply(1:r, function(x)
+    {
+      1-(ed[x]/d0)
+    })
+    
+    data2 <- cbind(data2, "Si" = c(si, NA))
+    
+    #sortowanie
+    data3 <- data2[-dim(data2)[1], ]
+    nazwy <- rownames(data)
+    tib <- as_tibble(data3)
+    tib$nazwy2 <- nazwy
+    tib <- tib %>%
+      arrange(desc(si))
+    tib <- as.data.frame(tib)
+    rownames(tib) <- tib$nazwy2
+    tib <- tib[, -dim(tib)[2]]
+    tib <- rbind(tib, data2[dim(data2)[1], ])
+    
+    tib2 <- cbind(data_n, "Si" = si)
+    nazwy <- rownames(data)
+    tib2 <- as_tibble(tib2)
+    tib2$nazwy2 <- nazwy
+    tib2 <- tib2 %>%
+      arrange(desc(si))
+    tib2 <- as.data.frame(tib2)
+    rownames(tib2) <- tib2$nazwy2
+    tib2 <- tib2[, -dim(tib2)[2]]
+    #tib2 <- rbind(tib2, data2[dim(data2)[1], ])
+    return(list("st" = tib, "normal" = tib2))
+  }
+  
+  if(method == "mss")
+  {
+    patt <- NA
+    #zamiana na stymulanty
+    for (a in 1:l)
+    {
+      if(x[a] == 2)
+      {
+        data[, a] <- -data[, a]
+      }
+      if(x[a] == 3)
+      {
+        data[, a] <- n2s(data[, a], nom[1])
+        nom <- nom[-1]
+      }
+    }
+    
+    #standaryzacja
+    data_st <- scale(data)
+    data_st <- as.data.frame(data_st)
+    
+    s_sums <- sapply(1:r, function(x){
+      sum(data_st[x,])
+    })
+
+    maximum <- max(s_sums)
+    minimum <- min(s_sums)
+    s_sums_st <- scale(s_sums, center = minimum, scale=maximum-minimum)
+    
+    data_st <- cbind(data_st, s_sums, "wsk" = s_sums_st)
+    
+    nazwy <- rownames(data)
+    tib <- as_tibble(data_st)
+    tib$nazwy2 <- nazwy
+    tib <- tib %>%
+      arrange(desc(wsk))
+    tib <- as.data.frame(tib)
+    rownames(tib) <- tib$nazwy2
+    tib <- tib[, -dim(tib)[2]]
+    
+    tib2 <- cbind(data_n, "wsk" = s_sums_st)
+    nazwy <- rownames(data)
+    tib2 <- as_tibble(tib2)
+    tib2$nazwy2 <- nazwy
+    tib2 <- tib2 %>%
+      arrange(desc(wsk))
+    tib2 <- as.data.frame(tib2)
+    rownames(tib2) <- tib2$nazwy2
+    tib2 <- tib2[, -dim(tib2)[2]]
+    
+    return(list("st" = tib, "normal" = tib2))
+  }
+  
+  if(method == "msr")
+  {
+    
+    #zamiana na stymulanty
+    for (a in 1:l)
+    {
+      if(x[a] == 2)
+      {
+        data[, a] <- -data[, a]
+      }
+      if(x[a] == 3)
+      {
+        data[, a] <- n2s(data[, a], nom[1])
+        nom <- nom[-1]
+      }
+    }
+    # #standaryzacja
+    data_st <- scale(data)
+    data_st <- as.data.frame(data_st) 
+    
+    tap <- sapply(1:l, function(x)
+    {
+      rank(data_st[, x], ties.method = "average")
+    })
+    
+    colnames(tap) <- paste0("rank_", colnames(data_st))
+    data_st <- cbind(data_st, tap)
+    
+    r_means <- sapply(1:r, function(x){
+      mean(tap[x, ])
+    })
+    
+    data_st <- cbind(data_st, "r_means" = r_means)
+    
+    nazwy <- rownames(data)
+    tib <- as_tibble(data_st)
+    tib$nazwy2 <- nazwy
+    tib <- tib %>%
+      arrange(desc(r_means))
+    tib <- as.data.frame(tib)
+    rownames(tib) <- tib$nazwy2
+    tib <- tib[, -dim(tib)[2]]
+    
+    tib2 <- cbind(data_n, "r_means" = r_means)
+    nazwy <- rownames(data)
+    tib2 <- as_tibble(tib2)
+    tib2$nazwy2 <- nazwy
+    tib2 <- tib2 %>%
+      arrange(desc(r_means))
+    tib2 <- as.data.frame(tib2)
+    rownames(tib2) <- tib2$nazwy2
+    tib2 <- tib2[, -dim(tib2)[2]]
+    
+    return(list("st" = tib, "normal" = tib2))
+  }
+}
+
+```
+
+#Użycie funkcji na danych
+
+Definiowany jest najpierw factor. 2x stymulanta, 4x destymulanta oraz 1x niminanta
 ```{r}
-as.data.frame(scale(phones))
+f <- factor(c(2, 2, 1, 1, 1, 1, 3), levels = c(1, 2, 3))
+```
+A nastęnie funkcja używana jest wraz z odpowiednimy argumentami
+```{r}
+a <- foo(phones, f, nom = 6, method = "hellwig")
+b <- foo(phones, f, nom = 6, method = "mss")
+c <- foo(phones, f, nom = 6, method = "msr")
+```
+Wywołanie elementu **normal** pokaże uporządkowane obiekty wraz z wejściowymi wartościami, element **st** pokaże dane zestandaryzowane oraz zmienne niezbędne do powstania rankingu. Kolejność jendak w obu przypadkach jest taka sama.  
+
+##Metoda hellwiga
+```{r}
+a$normal %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"))
 ```
 
+##metoda standaryzowanych sum
+```{r echo=FALSE}
+b$normal %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"))
+```
 
+##metoda sumy rang
+```{r echo=FALSE}
+c$normal %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"))
+```
 
- 
+```{r include=FALSE}
+a1 <- as.data.frame(a$normal[, 8])
+rownames(a1) <- rownames(a$normal)
+colnames(a1) <- "Si"
+
+b1 <- as.data.frame(b$normal[, 8])
+rownames(b1) <- rownames(b$normal)
+colnames(b1) <- "wsk"
+
+c1 <- as.data.frame(c$normal[, 8])
+rownames(c1) <- rownames(c$normal)
+colnames(c1) <- "r_means"
+```
+##Zestawienie wszystkich trzech metod
+```{r echo=FALSE}
+a1 %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"), full_width = F, position = "float_left") %>%
+  add_header_above(c("hellwig" = 2))
+
+b1 %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"), full_width = F, position = "float_left") %>%
+  add_header_above(c("mss" = 2))
+
+c1 %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"), full_width = F, position = "left") %>%
+  add_header_above(c("msr" = 2))
+```
+Widać że Xiaomi w każdej z metod zajmuje pierwsze miejsce. Nie jest to zaskoczeniem. Za bardzo niską cenę można dostać bardzo dobry jakościowo telefon. Pierwsze miejsce jest dowodem na niepowtarzalnie dobry stosunek jakości do ceny. Zaskoczeniem mogą być 2 telefony od Apple zajmujące jedne z ostatnich miejsc. Może to być aczkolwiek spowodowane tym, że są to starsze modele i, jak przystało na Apple, nie najtańsze. Porównując iPhone SE z Pocophone F1 różnica w cenie niespałna 300 zł na korzyść Apple oraz różnica prawie 3 lat od daty wydania na korzyść Xiaomi mówi sama za siebie, o osiągach nie wspominając. Na podium oprócz Xiaomi znajdują się również marki takie jak *Honor* oraz *HTC*. Nie są to bardzo popularne telefony, niemniej jednak nie można im odmówić tych pierwszych miejsc. Podobnie jak w przypadku Xiaomi dostać można naprawdę dobre telefony za stosunkowo niewielką cenę. Samsungi, które wydawać by się mogło, powinny być dobrymi telefonami. Ranging ten tego nie zaprzecza. Jednakże ponownie, cena gra tutaj bardzo ważną rolę. Nowsze Samsungi często przekraczają próg 4000, a starsze, chociaż tańsze, nie mają siły przebicia pod względem reszty parametrów np do nowych telefonów Xiaomi. Nie oznacza to, że te telefony są gorsze. Wydajnościowo wiele telefonów będzie lepszych od Xiaomi Pocophone F1, jednakże dla przeciętnego użytkownika będą to różnice niewyczuwalne. Reasumując, powyższe porządkowanie liniowe nienajgorzej pokazuje najelpsze telefony w stosunku jakości do ceny.
+
