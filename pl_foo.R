@@ -6,27 +6,29 @@ library(dplyr)
 # 1 - stymulatna
 # 2 - destymulanta
 # 3 - nominanta
-foo <- function(data, x = c(1, 2, 3), nom = NA, method = c("hellwig", "mss"))
+foo <- function(data, x = c(1, 2, 3), nom = NA, method = c("hellwig", "mss", "msr"))
 {
   if(!is.data.frame(data))
   {
-    stop("data is not a data frame")
+    stop("dane musza byc w postaci data.frame")
   }
-  # if(!is.factor(x))
-  # {
-  #   stop("x is not a factor")
-  # }
   if(dim(data)[2] != length(x))
   {
-    stop("wrong length of x (should be the same as number of variables in data frame")
+    stop("niezgodla dlugosc x, powinna miec tyle samo wartosci co ilosc zmienych")
   }
   #wyjątek gdy ilosć wartosci nominant jest rózna od nimonant
   if(!is.na(nom) & length(which(x == 3)) != length(nom))
   {
-    stop("niezgodna ilość nominant")
+    stop("niezgodna ilosc nominant")
   }
-  #zamiana nominanty na stymulante
-  
+  #wyjątek czy użytkownik nie podał "czwartego" typu zmiennej
+  for(a in x)
+  {
+    if(!is.element(a, 1:3))
+    {
+      stop("podaj odpowiedni typ zmiennej: 1- stymualna, 2- destymulanta, 3- nominanta")
+    }
+  }
 
   #zamiana nominanty na stymulante
   n2s <- function(v, nom2)
@@ -54,7 +56,7 @@ foo <- function(data, x = c(1, 2, 3), nom = NA, method = c("hellwig", "mss"))
   r <- dim(data)[1]#rows
   data_n <- data
 
-  ###############################################
+
   if(method == "hellwig")
   {
     #standaryzacja
