@@ -52,6 +52,7 @@ foo <- function(data, x = c(1, 2, 3), nom = NA, method = c("hellwig", "mss"))
   #wymiary
   l <- dim(data)[2]#collumns
   r <- dim(data)[1]#rows
+  data_n <- data
 
   ###############################################
   if(method == "hellwig")
@@ -110,7 +111,7 @@ foo <- function(data, x = c(1, 2, 3), nom = NA, method = c("hellwig", "mss"))
     tib <- tib[, -dim(tib)[2]]
     tib <- rbind(tib, data2[dim(data2)[1], ])
     
-    tib2 <- cbind(data, "Si" = si)
+    tib2 <- cbind(data_n, "Si" = si)
     nazwy <- rownames(data)
     tib2 <- as_tibble(tib2)
     tib2$nazwy2 <- nazwy
@@ -147,18 +148,12 @@ foo <- function(data, x = c(1, 2, 3), nom = NA, method = c("hellwig", "mss"))
     s_sums <- sapply(1:r, function(x){
       sum(data_st[x,])
     })
-    
-    #standaryzajca
-    # s_sums_st <- sapply(1:r, function(x){
-    #   (s_sums[x] - min(s_sums))/(max(s_sums[x] - min(s_sums)))
-    # })
-    
+
     maximum <- max(s_sums)
     minimum <- min(s_sums)
     s_sums_st <- scale(s_sums, center = minimum, scale=maximum-minimum)
     
     data_st <- cbind(data_st, s_sums, "wsk" = s_sums_st)
-    
     
     nazwy <- rownames(data)
     tib <- as_tibble(data_st)
@@ -169,7 +164,7 @@ foo <- function(data, x = c(1, 2, 3), nom = NA, method = c("hellwig", "mss"))
     rownames(tib) <- tib$nazwy2
     tib <- tib[, -dim(tib)[2]]
     
-    tib2 <- cbind(data, "wsk" = s_sums_st)
+    tib2 <- cbind(data_n, "wsk" = s_sums_st)
     nazwy <- rownames(data)
     tib2 <- as_tibble(tib2)
     tib2$nazwy2 <- nazwy
@@ -179,15 +174,12 @@ foo <- function(data, x = c(1, 2, 3), nom = NA, method = c("hellwig", "mss"))
     rownames(tib2) <- tib2$nazwy2
     tib2 <- tib2[, -dim(tib2)[2]]
     
-    
     return(list("st" = tib, "normal" = tib2))
   }
   
   if(method == "msr")
   {
-    #standaryzacja
-    data_st <- scale(data)
-    data_st <- as.data.frame(data_st)
+    
     #zamiana na stymulanty
     for (a in 1:l)
     {
@@ -201,8 +193,9 @@ foo <- function(data, x = c(1, 2, 3), nom = NA, method = c("hellwig", "mss"))
         nom <- nom[-1]
       }
     }
-    
-    
+    # #standaryzacja
+    data_st <- scale(data)
+    data_st <- as.data.frame(data_st) 
     
     tap <- sapply(1:l, function(x)
     {
@@ -227,7 +220,7 @@ foo <- function(data, x = c(1, 2, 3), nom = NA, method = c("hellwig", "mss"))
     rownames(tib) <- tib$nazwy2
     tib <- tib[, -dim(tib)[2]]
     
-    tib2 <- cbind(data, "r_means" = r_means)
+    tib2 <- cbind(data_n, "r_means" = r_means)
     nazwy <- rownames(data)
     tib2 <- as_tibble(tib2)
     tib2$nazwy2 <- nazwy
@@ -237,11 +230,6 @@ foo <- function(data, x = c(1, 2, 3), nom = NA, method = c("hellwig", "mss"))
     rownames(tib2) <- tib2$nazwy2
     tib2 <- tib2[, -dim(tib2)[2]]
     
-    
     return(list("st" = tib, "normal" = tib2))
   }
-    
-
-  
-  
 }
