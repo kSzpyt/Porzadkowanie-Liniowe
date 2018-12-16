@@ -45,6 +45,7 @@ foo <- function(data, x = c(1, 2, 3), nom = NA, method = c("hellwig", "mss", "ms
   #jeżeli użytkownik nie poda wartości nominanty brana pod uwagę będzie mediana
   if(is.na(nom))
   {
+    warning("jako wartość nominalna zostanie użyta mediana")
     ind <- which(x == 3)
     nom <- sapply(ind, function(x){
       median(data[, x])

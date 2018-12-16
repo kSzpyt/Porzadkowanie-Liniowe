@@ -1,0 +1,104 @@
+---
+title: "Porządkowanie Liniowe"
+author: "Karol Szpyt"
+date: "16 grudnia 2018"
+output: 
+  html_document:
+    toc: true # table of content true
+    toc_depth: 3  # upto three depths of headings (specified by #, ## and ###)
+    number_sections: true  ## if you want number sections at each table header
+    #theme: united
+  
+--- 
+```{r}
+library(kableExtra)
+library(readxl)
+```
+
+#Wprowadzenie  
+Projekt będzie miał za zadanie pokazanie trzech metod porządkowania liniowego, kolejno metodą **hellwiga**, **metody standaryzowanych sum** oraz **metodą sumy rang**. W tym celu stworzona została funkcja porządkująca wzzystkimi wymienionymi powyżej metodami. Przedstawiona dokładniej zostanie później
+
+#Przedstawienie danych  
+Dane, na których opierał się będzie projekt to smartphone'y z wybranymi kilkoma parametrami. Pochodzą one z serwisu [Benchmark](http://www.benchmark.pl/ranking/smartfony).
+```{r include=FALSE}
+phones <- read_excel("dane_telefony.xlsx")
+phones <- as.data.frame(phones)
+rownames(phones) <- phones[,1]
+phones <- phones[,-1]
+```  
+Znaczenie zmiennych:  
+
+ * **cena**- cena telefonu w złotówkach 
+ * **waga**- waga telefonu w gramach
+ * **Bateria - internet**- długość przeglądania interneru na baterii w minutach
+ * **CPU**- taktowanie procesora w Hz
+ * **Aparat tył**- ilość Mpx tynego aparatu
+ * **Aparat przód**- ilość Mpx przedniego aparatu  
+ * **Przekątna**- przekątna ekranu w calach
+```{r echo=FALSE}
+phones %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered")) %>%
+  scroll_box(height = "500px")
+```  
+
+#Oględziny danych
+```{r include=FALSE}
+wz <- function(x)
+{
+  sd(x)/mean(x)
+}
+
+```
+##Wartości odstające  
+W celu wychwycenia wartości odstających wykorzystana zostanie reguła trzech sigm- na zestandaryzowanych danych sprawdzamy czy są wartości większe (bezwzględnie) od 3
+```{r}
+phones_st <- as.data.frame(scale(phones))
+which(abs(phones_st) > 3)
+```
+Output wskazuje na brak wartości odstających. Jednakże warto spojrzeć jeszcze na dane oraz na boxploty, jednocześnie obliczając współczynnik zmiennośći 
+```{r echo=FALSE, fig.align='center'}
+par(mfrow = c(1, 3))
+for (x in 1:3) {
+  boxplot(phones[, x], main = colnames(phones)[x])
+}
+
+par(mfrow = c(1, 4))
+for (x in 4:7) {
+  boxplot(phones[, x], main = colnames(phones)[x])
+}
+wspz <- as.data.frame(apply(phones, 2, wz))
+colnames(wspz) <- "wsp_zmiennosci"
+wspz%>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"))
+```
+Przyglądając się boxplotom można zauważyć nienaturalnie niską wartość taktowania procesora
+
+
+```{r}
+phones <- phones[-which(phones$CPU < 1800), ]
+phones <- phones[-which(phones$`Aparat tył` >= 40), ]
+# phones <- phones[-which(phones$cena >= 4000), ]
+# phones <- phones[-which(phones$`Aparat przód` >= 12), ]
+```
+
+```{r echo=FALSE, fig.align='center'}
+par(mfrow = c(1, 3))
+for (x in 1:3) {
+  boxplot(phones[, x], main = colnames(phones)[x])
+}
+
+par(mfrow = c(1, 4))
+for (x in 4:7) {
+  boxplot(phones[, x], main = colnames(phones)[x])
+}
+apply(phones, 2, wz)
+```
+```{r}
+as.data.frame(scale(phones))
+```
+
+
+
+ 
